@@ -24,13 +24,13 @@ setup:
 	@$(PIP) install -r requirements.txt
 
 run:
-	@echo "Ejecutando fase 1.."
+	@echo "=========== FASE 1 ==========="
 	@$(PYTHON) CODIGO/fase1.py
-	@echo "Ejecutando fase 2.."
+	@echo "=========== FASE 2 ==========="
 	@$(PYTHON) CODIGO/fase2.py
-	@echo "Ejecutando fase 3.."
+	@echo "=========== FASE 3 ==========="
 	@$(PYTHON) CODIGO/fase3.py
-	@echo "Ejecutando fase 4.."
+	@echo "=========== FASE 4 ==========="
 	@$(PYTHON) CODIGO/fase4.py
 
 build:
