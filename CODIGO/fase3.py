@@ -1,11 +1,13 @@
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from Crypto.Hash import SHA256
-from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 
-DELIMITADOR = b"<DELIMITADOR>"
-
+DELIMITADOR = b"<-x->"
+mensajes = []
 tabs = 0
+
 def log(level: str, msg: str):
     """
     Nombre funcion: log
@@ -17,84 +19,6 @@ def log(level: str, msg: str):
     """
     global tabs
     print("\t" * tabs + f"[{level}] {msg}")
-
-def cifrar_mensaje(mensaje: bytes, priv_emisor: RSA.RsaKey, pub_receptor: RSA.RsaKey) -> bytes:
-    """
-    Nombre funcion: cifrar_mensaje
-    Parametros:
-        - mensaje: Informacion que se quiere enviar en bytes
-        - priv_emisor: Objeto de Clave privada RSA del emisor
-        - pub_receptor: Objeto de Clave publica RSA del receptor
-    Descripcion:
-        Funcion que se encarga de cifrar un mensaje utilizando la clave publica del receptor,
-        generar una firma digital con la clave privada del emisor y unir ambos en un solo
-        bloque de datos a enviar con un delimitador.
-    """
-    # Cifrado
-    cifrador = PKCS1_OAEP.new(pub_receptor)         # Crear un objeto de cifrado con la clave publica del receptor
-    mensaje_cifrado = cifrador.encrypt(mensaje)     # Cifrar los datos a enviar
-
-    log("cifrar_mensaje", f"Mensaje original: {mensaje.decode()}")
-    log("cifrar_mensaje", f"Mensaje cifrado de tamaño: {len(mensaje_cifrado)} bytes")
-
-    # Huella Digital
-    hash = SHA256.new(mensaje_cifrado)              # Crear un hash del mensaje
-    firmador = pkcs1_15.new(priv_emisor)            # Crear un objeto de firma con la clave privada del emisor
-    firma = firmador.sign(hash)                     # Firmar el hash del mensaje
-
-    log("cifrar_mensaje", f"Hash calculado: {hash.hexdigest()}")
-    log("cifrar_mensaje", f"Firma generada de tamaño: {len(firma)} bytes")
-
-    # Informacion y Prueba de Autenticidad
-    data = mensaje_cifrado + DELIMITADOR + firma    # Unir el mensaje y la firma en los datos a enviar
-
-    log("cifrar_mensaje", f"Datos a enviar de tamaño: {len(data)} bytes")
-    return data
-
-def descifrar_mensaje(data: bytes, priv_receptor: RSA.RsaKey, pub_emisor: RSA.RsaKey) -> bytes | None:
-    """
-    Nombre funcion: descifrar_mensaje
-    Parametros:
-        - data: Informacion que se recibio en bytes
-        - priv_receptor: Objeto de Clave privada RSA del receptor
-        - pub_emisor: Objeto de Clave publica RSA del emisor
-    Descripcion:
-        Funcion que se encarga de separar el mensaje cifrado de la firma digital,
-        verificar la firma con la clave publica del emisor y si es correcta,
-        descifrar el mensaje utilizando la clave privada del receptor.
-        Si la firma no es correcta o el mensaje no se puede descifrar,
-        se asume que el mensaje ha sido saboteado y se devuelve None
-    """
-    log("descifrar_mensaje", f"Datos recibidos de tamaño: {len(data)} bytes")
-    # Informacion y Prueba de Autenticidad
-    mensaje_cifrado, firma = data.split(DELIMITADOR)# Separar el mensaje de la firma en los datos recibidos
-    log("descifrar_mensaje", f"Mensaje cifrado recibido de tamaño: {len(mensaje_cifrado)} bytes")
-    log("descifrar_mensaje", f"Firma recibida de tamaño: {len(firma)} bytes")
-    try:
-        # Huella Digital
-        hash = SHA256.new(mensaje_cifrado)          # Crear un hash del mensaje
-        firmador = pkcs1_15.new(pub_emisor)         # Crear un objeto de firma con la clave publica del emisor
-        log("descifrar_mensaje", f"Hash calculado: {hash.hexdigest()}")
-        log("descifrar_mensaje", "Verificando la firma con la clave publica del emisor")
-        firmador.verify(hash, firma)                # Verificar la firma
-    except (ValueError):
-       # Error en la Huella Digital
-       log("descifrar_mensaje", "¡¡¡SABOTAJE DETECTADO!!!")
-       log("descifrar_mensaje", "El mensaje esta incompleto o no es autentico")
-       return None
-
-    try:
-        # Descifrado
-        cifrador = PKCS1_OAEP.new(priv_receptor)    # Crear un objeto de cifrado con la clave privada del receptor
-        log("descifrar_mensaje", "Descifrando el mensaje con la clave privada del receptor")
-        mensaje = cifrador.decrypt(mensaje_cifrado) # Descifrar los datos recibidos
-    except (ValueError, TypeError):
-        # Falla en cifrado
-        log("descifrar_mensaje", "¡¡¡SABOTAJE DETECTADO!!!")
-        log("descifrar_mensaje", "El mensaje esta incompleto o la clave utilizada no es correcta")
-        return None
-    log("descifrar_mensaje", f"Mensaje descifrado: {mensaje.decode()}")
-    return mensaje
 
 def generar_par() -> tuple[RSA.RsaKey, RSA.RsaKey]:
     """
@@ -108,107 +32,170 @@ def generar_par() -> tuple[RSA.RsaKey, RSA.RsaKey]:
     pub = key.publickey()
     return pub, priv
 
-if __name__ == "__main__":
-    # Definicion de los nombres
-    A = "Aaron"
-    B = "Brandon"
-    C = "Carlos"
-    mensajeA = f"El espia es {C}"
-    mensajeB = "Nos estan saboteando, no podemos confiar en nadie"
-    mensajeC = f"El espia es {A}"
+def cifrar_mensaje(mensaje: bytes, priv_emisor: RSA.RsaKey, simetrica: bytes) -> bytes:
+    """
+    Nombre funcion: cifrar_mensaje
+    Parametros:
+        - mensaje: Mensaje a cifrar
+        - priv_emisor: Clave privada del emisor del mensaje
+        - simetrica: Clave simetrica para cifrar el mensaje
+    Descripcion:
+        Funcion que se encarga de cifrar un mensaje utilizando AES con la clave simetrica
+        y luego firmar el mensaje cifrado utilizando la clave privada del emisor.
+        Se retornan nonce, tag, mensaje cifrado y firma unidos por un delimitador.
+    """
+    cifrador = AES.new(simetrica, AES.MODE_GCM)
+    nonce = cifrador.nonce
+    mensaje_cifrado, tag = cifrador.encrypt_and_digest(mensaje)
 
-    # Claves publicas y privadas
+    hash = SHA256.new(mensaje_cifrado)
+    firmador = pkcs1_15.new(priv_emisor)
+    firma = firmador.sign(hash)
+
+    data = DELIMITADOR.join([
+        nonce,
+        tag,
+        mensaje_cifrado,
+        firma
+    ])
+
+    return data
+
+def descifrar_mensaje(data: bytes, pub_emisor: RSA.RsaKey, simetrica: bytes) -> tuple[bytes | None, str]:
+    """
+    Nombre funcion: descifrar_mensaje
+    Parametros:
+        - data: Datos a descifrar
+        - pub_emisor: Clave publica del emisor del mensaje
+        - simetrica: Clave simetrica para descifrar el mensaje
+    Descripcion:
+        Funcion que se encarga de descifrar un mensaje utilizando AES con la clave simetrica
+        y luego verificar la firma utilizando la clave publica del emisor.
+    """
+    # Separar los datos
+    nonce, tag, mensaje_cifrado, firma = data.split(DELIMITADOR)
+
+    try:
+        # Descifrar con simetrica y comprobar integridad
+        cifrador = AES.new(simetrica, AES.MODE_GCM, nonce=nonce)
+        mensaje = cifrador.decrypt_and_verify(mensaje_cifrado, tag)
+    except (ValueError):
+        log(SIS, "La clave es incorrecta")
+        return None, "incorrecta"
+
+    try:
+        # Verificar autenticidad
+        hash = SHA256.new(mensaje_cifrado)
+        firmador = pkcs1_15.new(pub_emisor)
+        firmador.verify(hash, firma)
+    except (ValueError):
+        log(SIS, "La firma no es valida o el mensaje fue modificado")
+        return None, "invalido"
+
+    return mensaje, "correcto"
+
+def enviar_mensaje(mensaje: bytes, priv_emisor: RSA.RsaKey, simetrica: bytes):
+    """
+    Nombre funcion: enviar_mensaje
+    Parametros:
+        - mensaje: Mensaje a enviar
+        - priv_emisor: Clave privada del emisor del mensaje
+        - simetrica: Clave simetrica para cifrar el mensaje
+    Descripcion:
+        Funcion que se encarga de cifrar un mensaje y agregarlo a la lista de mensajes del consejo.
+    """
+    mensaje_cifrado = cifrar_mensaje(mensaje, priv_emisor, simetrica)
+    mensajes.append(mensaje_cifrado)
+
+def recibir_mensaje(pubs: dict[str, RSA.RsaKey], simetrica: bytes) -> tuple[bytes | None, str]:
+    """
+    Nombre funcion: recibir_mensaje
+    Parametros:
+        - pubs: Diccionario con las claves publicas de los usuarios del consejo
+        - simetrica: Clave simetrica para descifrar el mensaje
+    Descripcion:
+        Funcion que se encarga de recibir un mensaje y verificar su autenticidad.
+    """
+    global tabs
+    log(SIS, "Mensaje recibido")
+    data = mensajes.pop()
+    for usuario in pubs.keys():
+        tabs += 1
+        pub = pubs[usuario]
+        log(SIS, f"Comprobando usuario ({usuario})")
+        mensaje, error = descifrar_mensaje(data=data, pub_emisor=pub, simetrica=simetrica)
+        tabs -= 1
+        if mensaje is not None:
+            log(SIS, "El mensaje proviene del consejo")
+            return mensaje, usuario
+        if error == "incorrecta":
+            log(SIS, "La clave no es del consejo")
+            return None, "ERROR"
+    log(SIS, "El mensaje no proviene de ningun usuario del consejo o fue modificado")
+    log(SIS, "SABOTAJE DETECTADO")
+    return None, "ERROR"
+
+
+if __name__ == '__main__':
+    A = "consejo | Aaron"
+    B = "consejo | Brandon"
+    C = "traidor | Carlos"
+    D = "externo | Daniel"
+    SIS = "SISTEMA"
+
+    simetricaConsejo = get_random_bytes(32)
     pubA, privA = generar_par()
     pubB, privB = generar_par()
-    pubC, privC = generar_par()
+    pubD, privD = generar_par()
 
-    # Cifrado del mensaje de A para B
-    log(A, f"Voy a mandar un mensaje a {B}")
+    consejo = {
+        A: pubA,
+        B: pubB,
+    }
+
+    log(C, f"Le dare la clave simetrica del consejo a ({D}) para que mande mensajes falsos")
+    log(SIS, f"El usuario ({C}) ha sido expulsado")
+    mensajeD = f"Soy ({A}) deben mandar los codigos a http://no-secure-place.ru/codes"
+    log(D, f"Voy a mandar un mensaje al consejo: '{mensajeD}'")
+    enviar_mensaje(
+        mensaje=mensajeD.encode(),
+        priv_emisor=privD,
+        simetrica=simetricaConsejo
+    )
+
+    mensajeD2, emisorD2 = recibir_mensaje(consejo, simetricaConsejo)
+
+    log(A, f"Avisare que ({C}) nos traiciono")
+    mensajeA = f"({C}) compartio la clave simetrica"
     log(A, f"mensaje: {mensajeA}")
-    tabs += 1
-    cifrado = cifrar_mensaje(
+    enviar_mensaje(
         mensaje=mensajeA.encode(),
         priv_emisor=privA,
-        pub_receptor=pubB
+        simetrica=simetricaConsejo
     )
-    tabs -= 1
-    log(A, f"Enviando mensaje cifrado a {B}")
 
-    # Descifrado del mensaje por parte de B
-    log(B, f"Recibi un mensaje de {A}")
-    tabs += 1
-    descifrado = descifrar_mensaje(
-        data=cifrado,
-        priv_receptor=privB,
-        pub_emisor=pubA
+    mensajeA2, emisorA2 = recibir_mensaje(consejo, simetricaConsejo)
+    log(B, f"Recibi el mensaje de ({emisorA2})")
+
+    log(B, "Voy a responder al mensaje")
+    mensajeB = "Debemos cambiar la clave simetrica del consejo"
+    log(B, f"mensaje: '({mensajeB})'")
+    enviar_mensaje(
+        mensaje=mensajeA.encode(),
+        priv_emisor=privA,
+        simetrica=simetricaConsejo
     )
-    tabs -= 1
-    if descifrado is not None:
-        log(B, f"El mensaje es: {descifrado.decode()}")
-    else:
-        log(B, "No se pudo descifrar el mensaje o no es autentico")
-        log(B, "Nos estan saboteando")
 
-    # Ataque de C haciendose pasar por A
-    log(C, f"Voy a mandar un mensaje al {B} haciendome pasar por {A}")
-    log(C, f"mensaje: {mensajeC}")
-    tabs += 1
-    cifrado_falso = cifrar_mensaje(
-        mensaje=mensajeC.encode(),
-        priv_emisor=privC,
-        pub_receptor=pubB
-    )
-    tabs -= 1
-    log(C, f"Enviando mensaje cifrado falso a {B}")
+    log(C, "Intercepte el mensaje, voy a modificarlo manteniendo la firma original")
+    mensajeB_modificado = "Debemos mantener la clave simetrica del consejo"
+    log(C, f"mensaje modificado: '{mensajeB_modificado}'")
+    mensaje_interceptado = mensajes.pop()
+    # Obtener la firma original del mensaje
+    _, _, _, firma_original = mensaje_interceptado.split(DELIMITADOR)
+    # Cifrar un nuevo mensaje
+    nonce, tag, mensaje_cifrado_modificado, _ = cifrar_mensaje(mensajeB_modificado.encode(), privD, simetricaConsejo).split(DELIMITADOR)
+    # Nuevo mensaje cifrado + Firma original del interceptado
+    mensaje_alterado_con_firma = DELIMITADOR.join([nonce, tag, mensaje_cifrado_modificado, firma_original])
+    mensajes.append(mensaje_alterado_con_firma)
 
-    # Descifrado del mensaje por parte de B
-    log(B, f"Recibi un mensaje de {A}")
-    tabs += 1
-    descifrado_falso = descifrar_mensaje(
-        data=cifrado_falso,
-        priv_receptor=privB,
-        pub_emisor=pubA
-    )
-    tabs -= 1
-    if descifrado_falso is not None:
-        log(B, f"El mensaje es: {descifrado_falso.decode()}")
-    else:
-        log(B, "No se pudo descifrar el mensaje o no es autentico")
-        log(B, "Nos estan saboteando")
-
-    # Sabotaje de C modificando el mensaje de B para A
-    log(B, f"Voy a mandar un mensaje a {A}")
-    log(B, f"mensaje: {mensajeB}")
-    tabs += 1
-    cifrado_b = cifrar_mensaje(
-        mensaje=mensajeB.encode(),
-        priv_emisor=privB,
-        pub_receptor=pubA
-    )
-    tabs -= 1
-    log(B, f"Enviando mensaje cifrado a {A}")
-
-    # C intercepta el mensaje y lo modifica
-    log(C, f"Intercepte el mensaje de {B}")
-    tabs += 1
-    mensaje_cifrado_C = cifrado_falso.split(DELIMITADOR)[0]
-    firma_B = cifrado_b.split(DELIMITADOR)[1]
-    cifrado_modificado = mensaje_cifrado_C + DELIMITADOR + firma_B
-    log(C, "Modificando mensaje B + DELIMITADOR + firma B -> mensaje C + DELIMITADOR + firma B")
-    tabs -= 1
-    log(C, f"Enviando mensaje cifrado modificado a {A}")
-
-    # A recibe el mensaje modificado
-    log(A, f"Recibi un mensaje de {B}")
-    tabs += 1
-    descifrado_modificado = descifrar_mensaje(
-        data=cifrado_modificado,
-        priv_receptor=privA,
-        pub_emisor=pubB
-    )
-    tabs -= 1
-    if descifrado_modificado is not None:
-        log(A, f"El mensaje es: {descifrado_modificado.decode()}")
-    else:
-        log(A, "No se pudo descifrar el mensaje o no es autentico")
-        log(A, "Nos estan saboteando")
+    mensajeB2, emisorB2 = recibir_mensaje(consejo, simetricaConsejo)
