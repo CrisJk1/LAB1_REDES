@@ -76,3 +76,17 @@ def guardar_llaves(key_pair, nombre):
         f.write(key_pair.public_key().export_key())
     
     print(f"[+] Credenciales guardadas en: {folder_user}/")
+
+if __name__ == "__main__":
+    # Se piden los datos por consola para la identidad criptográfica
+    print("--- PROTOCOLO OMEGA: IDENTIDAD CRIPTOGRÁFICA ---")
+    u_nombre = input("Ingrese su Nombre: ").strip().replace(" ", "_")
+    u_rol = input("Ingrese su ROL: ").strip()
+
+    if not u_nombre or not u_rol:
+        print("[!] Error: Nombre y ROL son obligatorios.")
+        sys.exit(1)
+
+    llaves, salt_utilizado = obtener_identidad(u_nombre, u_rol)
+    guardar_llaves(llaves, u_nombre)
+    print("\n[V] Fase 1 completada exitosamente.")
