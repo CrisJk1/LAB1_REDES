@@ -57,3 +57,22 @@ def obtener_identidad(nombre, rol):
     key_pair = RSA.generate(2048, randfunc=rng)
     
     return key_pair, salt
+
+def guardar_llaves(key_pair, nombre):
+    """
+    ■ Nombre función: guardar_llaves
+    ■ Parámetros: [key_pair: RsaKey, nombre: str]
+    ■ Descripción: Guarda las llaves RSA en formato PEM dentro de la carpeta del miembro.
+    """
+    # Apuntamos a la carpeta específica del usuario
+    folder_user = os.path.join("CODIGO", "keys", nombre)
+    
+    path_priv = os.path.join(folder_user, f"{nombre}_priv.pem")
+    path_pub = os.path.join(folder_user, f"{nombre}_pub.pem")
+    
+    with open(path_priv, "wb") as f:
+        f.write(key_pair.export_key())
+    with open(path_pub, "wb") as f:
+        f.write(key_pair.public_key().export_key())
+    
+    print(f"[+] Credenciales guardadas en: {folder_user}/")
