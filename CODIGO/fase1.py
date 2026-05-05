@@ -7,13 +7,25 @@ from Crypto.Random import get_random_bytes
 
 class DeterministicRNG:
     """
-    Simula un generador de números aleatorios usando una semilla fija (Strong Key).
+    ■ Clase: DeterministicRNG
+    ■ Descripción: Simula un generador de números aleatorios (PRNG) que produce
+      una secuencia determinista de bytes a partir de una semilla fija.
     """
     def __init__(self, seed):
+        """
+        ■ Parámetros: [seed: bytes]
+        ■ Descripción: Inicializa el generador con la Strong Key y un contador en cero.
+        """        
         self.seed = seed
         self.counter = 0
 
     def __call__(self, n):
+        """
+        ■ Nombre función: __call__
+        ■ Parámetros: [n: int]
+        ■ Descripción: Genera 'n' bytes deterministas. Es la función que RSA.generate
+          invoca para obtener la "entropía" necesaria para las llaves.
+        """
         result = b""
         while len(result) < n:
             # Estiramos la semilla usando hashing para obtener 'n' bytes
@@ -78,7 +90,11 @@ def guardar_llaves(key_pair, nombre):
     print(f"[+] Credenciales guardadas en: {folder_user}/")
 
 if __name__ == "__main__":
-    # Se piden los datos por consola para la identidad criptográfica
+    """
+    ■ Bloque: Punto de Entrada Principal
+    ■ Descripción: Orquesta el flujo de la Fase 1. Solicita datos al usuario, 
+      inicia el protocolo de identidad y coordina el almacenamiento de las credenciales.
+    """
     print("--- PROTOCOLO OMEGA: IDENTIDAD CRIPTOGRÁFICA ---")
     u_nombre = input("Ingrese su Nombre: ").strip().replace(" ", "_")
     u_rol = input("Ingrese su ROL: ").strip()
