@@ -3,7 +3,7 @@
 
 \title{Laboratorio 1: El Incidente del Sistema Golgotha}
 \author{
-    Cristian Quintanilla - ROL \\
+    Cristian Quintanilla - 202210117-2 \\
     Jose Alvarado - ROL \\
     Matias Peñaloza - 202373037-8 \\
     Cristobal Aguilera - ROL
@@ -11,5 +11,18 @@
 \date{\today}
 \begin{document}
 \maketitle
+
+\section{Evidencias}
+
+\section{Análisis Teórico}
+\subsection{Comparación ECB vs CBC}
+
+En la fase II se cifró la imagen BMP del silo utilizando AES-128 en dos modos de operación: ECB y CBC. La diferencia observada fue clara: en la imagen cifrada con ECB todavía se distinguen patrones de la imagen original, especialmente el hexágono central, el cual se mantuvo reconocible incluso al repetir pruebas con distintas claves. Esto ocurre porque ECB cifra cada bloque de forma independiente; por lo tanto, bloques de texto plano iguales producen bloques cifrados iguales, preservando patrones estructurales en archivos con información repetitiva, como una imagen.
+
+En cambio, al cifrar la misma imagen con CBC, los patrones visuales desaparecen completamente y el resultado se observa como ruido o estática. Esto se debe a que CBC encadena cada bloque con el bloque cifrado anterior y utiliza un IV para aleatorizar el primer bloque. Así, aunque existan bloques similares o repetidos en la imagen original, su representación cifrada cambia según el contexto del encadenamiento. Por esta razón, CBC es la mejor opción para ocultar información visual, ya que evita la filtración de patrones que sí aparece en ECB.
+
+
+
+\section{Interrogatorio}
 
 \end{document}
