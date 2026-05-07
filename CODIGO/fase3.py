@@ -40,23 +40,24 @@ def cifrar_mensaje(mensaje: bytes, priv_emisor: RSA.RsaKey, simetrica: bytes) ->
         - priv_emisor: Clave privada del emisor del mensaje
         - simetrica: Clave simetrica para cifrar el mensaje
     Descripcion:
-        Funcion que se encarga de cifrar un mensaje utilizando AES con la clave simetrica
-        y luego firmar el mensaje cifrado utilizando la clave privada del emisor.
-        Se retornan nonce, tag, mensaje cifrado y firma unidos por un delimitador.
+        Funcion que se encarga de primero firmar el mensaje utilizando la clave privada del emisor
+        y luego cifrar el mensaje y la firma utilizando AES con la clave simetrica.
+        Se retornan nonce, tag y paquete cifrado unidos por un delimitador.
     """
+    hash_msg = SHA256.new(mensaje)
+    firmador = pkcs1_15.new(priv_emisor)
+    firma = firmador.sign(hash_msg)
+
+    paquete_a_cifrar = mensaje + DELIMITADOR + firma
+
     cifrador = AES.new(simetrica, AES.MODE_GCM)
     nonce = cifrador.nonce
-    mensaje_cifrado, tag = cifrador.encrypt_and_digest(mensaje)
-
-    hash = SHA256.new(mensaje_cifrado)
-    firmador = pkcs1_15.new(priv_emisor)
-    firma = firmador.sign(hash)
+    paquete_cifrado, tag = cifrador.encrypt_and_digest(paquete_a_cifrar)
 
     data = DELIMITADOR.join([
         nonce,
         tag,
-        mensaje_cifrado,
-        firma
+        paquete_cifrado
     ])
 
     return data
@@ -70,24 +71,25 @@ def descifrar_mensaje(data: bytes, pub_emisor: RSA.RsaKey, simetrica: bytes) -> 
         - simetrica: Clave simetrica para descifrar el mensaje
     Descripcion:
         Funcion que se encarga de descifrar un mensaje utilizando AES con la clave simetrica
-        y luego verificar la firma utilizando la clave publica del emisor.
+        y luego verificar la firma sobre el mensaje original utilizando la clave publica del emisor.
     """
     # Separar los datos
-    nonce, tag, mensaje_cifrado, firma = data.split(DELIMITADOR)
+    nonce, tag, paquete_cifrado = data.split(DELIMITADOR)
 
     try:
         # Descifrar con simetrica y comprobar integridad
         cifrador = AES.new(simetrica, AES.MODE_GCM, nonce=nonce)
-        mensaje = cifrador.decrypt_and_verify(mensaje_cifrado, tag)
+        paquete = cifrador.decrypt_and_verify(paquete_cifrado, tag)
+        mensaje, firma = paquete.split(DELIMITADOR)
     except (ValueError):
         log(SIS, "La clave es incorrecta")
         return None, "incorrecta"
 
     try:
         # Verificar autenticidad
-        hash = SHA256.new(mensaje_cifrado)
+        hash_msg = SHA256.new(mensaje)
         firmador = pkcs1_15.new(pub_emisor)
-        firmador.verify(hash, firma)
+        firmador.verify(hash_msg, firma)
     except (ValueError):
         log(SIS, "La firma no es valida o el mensaje fue modificado")
         return None, "invalido"
@@ -104,7 +106,9 @@ def enviar_mensaje(mensaje: bytes, priv_emisor: RSA.RsaKey, simetrica: bytes):
     Descripcion:
         Funcion que se encarga de cifrar un mensaje y agregarlo a la lista de mensajes del consejo.
     """
+    log(SIS, "Cifrando mensaje")
     mensaje_cifrado = cifrar_mensaje(mensaje, priv_emisor, simetrica)
+    log(SIS, "Mensaje agregado")
     mensajes.append(mensaje_cifrado)
 
 def recibir_mensaje(pubs: dict[str, RSA.RsaKey], simetrica: bytes) -> tuple[bytes | None, str]:
@@ -122,7 +126,7 @@ def recibir_mensaje(pubs: dict[str, RSA.RsaKey], simetrica: bytes) -> tuple[byte
     for usuario in pubs.keys():
         tabs += 1
         pub = pubs[usuario]
-        log(SIS, f"Comprobando usuario ({usuario})")
+        log(SIS, f"Descifrando con usuario ({usuario})")
         mensaje, error = descifrar_mensaje(data=data, pub_emisor=pub, simetrica=simetrica)
         tabs -= 1
         if mensaje is not None:
@@ -179,7 +183,7 @@ if __name__ == '__main__':
 
     log(B, "Voy a responder al mensaje")
     mensajeB = "Debemos cambiar la clave simetrica del consejo"
-    log(B, f"mensaje: '({mensajeB})'")
+    log(B, f"mensaje: '{mensajeB}'")
     enviar_mensaje(
         mensaje=mensajeA.encode(),
         priv_emisor=privA,
@@ -190,12 +194,20 @@ if __name__ == '__main__':
     mensajeB_modificado = "Debemos mantener la clave simetrica del consejo"
     log(C, f"mensaje modificado: '{mensajeB_modificado}'")
     mensaje_interceptado = mensajes.pop()
+
     # Obtener la firma original del mensaje
-    _, _, _, firma_original = mensaje_interceptado.split(DELIMITADOR)
+    n_int, t_int, p_cifrado = mensaje_interceptado.split(DELIMITADOR)
+    cif_int = AES.new(simetricaConsejo, AES.MODE_GCM, nonce=n_int)
+    _, firma_original = cif_int.decrypt_and_verify(p_cifrado, t_int).split(DELIMITADOR)
+
     # Cifrar un nuevo mensaje
-    nonce, tag, mensaje_cifrado_modificado, _ = cifrar_mensaje(mensajeB_modificado.encode(), privD, simetricaConsejo).split(DELIMITADOR)
+    paquete_modificado = mensajeB_modificado.encode() + DELIMITADOR + firma_original
+    cif_mod = AES.new(simetricaConsejo, AES.MODE_GCM)
+    nonce_mod = cif_mod.nonce
+    paquete_cifrado_modificado, tag_mod = cif_mod.encrypt_and_digest(paquete_modificado)
+
     # Nuevo mensaje cifrado + Firma original del interceptado
-    mensaje_alterado_con_firma = DELIMITADOR.join([nonce, tag, mensaje_cifrado_modificado, firma_original])
+    mensaje_alterado_con_firma = DELIMITADOR.join([nonce_mod, tag_mod, paquete_cifrado_modificado])
     mensajes.append(mensaje_alterado_con_firma)
 
     mensajeB2, emisorB2 = recibir_mensaje(consejo, simetricaConsejo)
