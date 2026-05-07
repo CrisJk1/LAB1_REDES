@@ -92,17 +92,39 @@ def guardar_llaves(key_pair, nombre):
 if __name__ == "__main__":
     """
     ■ Bloque: Punto de Entrada Principal
-    ■ Descripción: Orquesta el flujo de la Fase 1. Solicita datos al usuario, 
-      inicia el protocolo de identidad y coordina el almacenamiento de las credenciales.
+    ■ Descripción: Orquesta el flujo de la Fase 1 permitiendo el ingreso 
+      múltiple de miembros.
     """
     print("--- PROTOCOLO OMEGA: IDENTIDAD CRIPTOGRÁFICA ---")
-    u_nombre = input("Ingrese su Nombre: ").strip().replace(" ", "_")
-    u_rol = input("Ingrese su ROL: ").strip()
+    
+    while True:
+        # 1. Captura de datos
+        u_nombre = input("\nIngrese Nombre del miembro (o 'salir' para terminar): ").strip().replace(" ", "_")
+        
+        # Opción de salida
+        if u_nombre.lower() == 'salir':
+            print("[!] Finalizando registro de identidades...")
+            break
+            
+        u_rol = input(f"Ingrese ROL de {u_nombre}: ").strip()
 
-    if not u_nombre or not u_rol:
-        print("[!] Error: Nombre y ROL son obligatorios.")
-        sys.exit(1)
+        # 2. Validación básica
+        if not u_nombre or not u_rol:
+            print("[!] Error: El nombre y el ROL no pueden estar vacíos. Reintente.")
+            continue
 
-    llaves, salt_utilizado = obtener_identidad(u_nombre, u_rol)
-    guardar_llaves(llaves, u_nombre)
-    print("\n[V] Fase 1 completada exitosamente.")
+        # 3. Ejecución del protocolo
+        try:
+            llaves, salt_utilizado = obtener_identidad(u_nombre, u_rol)
+            guardar_llaves(llaves, u_nombre)
+            print(f"[V] Identidad de {u_nombre} generada con éxito.")
+        except Exception as e:
+            print(f"[X] Error inesperado procesando a {u_nombre}: {e}")
+
+        # 4. Preguntar si desea continuar
+        continuar = input("\n¿Desea ingresar a otro miembro? (s/n): ").strip().lower()
+        if continuar != 's':
+            print("[!] Protocolo finalizado. Cerrando terminal segura.")
+            break
+
+    print("\n--- PROCESO COMPLETADO ---")
