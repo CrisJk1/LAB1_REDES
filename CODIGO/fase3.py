@@ -140,6 +140,10 @@ def recibir_mensaje(pubs: dict[str, RSA.RsaKey], simetrica: bytes) -> tuple[byte
     return None, "ERROR"
 
 
+def save(file: str, key: bytes):
+    with open(f"CODIGO/keys-fase3/{file}", "wb") as f:
+        f.write(key)
+
 if __name__ == '__main__':
     A = "consejo | Aaron"
     B = "consejo | Brandon"
@@ -151,6 +155,14 @@ if __name__ == '__main__':
     pubA, privA = generar_par()
     pubB, privB = generar_par()
     pubD, privD = generar_par()
+
+    save("simetrica_consejo.bin", simetricaConsejo)
+    save("pub_a.pem", pubA.export_key())
+    save("priv_a.pem", privA.export_key())
+    save("pub_b.pem", pubB.export_key())
+    save("priv_b.pem", privB.export_key())
+    save("pub_d.pem", pubD.export_key())
+    save("priv_d.pem", privD.export_key())
 
     consejo = {
         A: pubA,
