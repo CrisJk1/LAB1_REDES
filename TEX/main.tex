@@ -2,17 +2,138 @@
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+% Definición de colores para el estilo de código
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstset{
+    language=Python,
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=4,
+    frame=single
+}
+
 
 \title{Laboratorio 1: El Incidente del Sistema Golgotha}
 \author{
     Cristian Quintanilla - 202210117-2 \\
     Jose Alvarado - 202373122-6 \\
     Matias Peñaloza - 202373037-8 \\
-    Cristobal Aguilera - ROL
+    Cristóbal Aguilera - 201741022-1
 }
 \date{\today}
 \begin{document}
 \maketitle
+
+\section{Fase 1}
+\subsection{Análisis Teórico}
+\subsubsection{Generación de Identidad Criptográfica}
+
+La Fase 1 del Protocolo OMEGA establece la raíz de confianza del sistema mediante la vinculación determinista de la identidad del usuario (Nombre y ROL) con sus credenciales criptográficas. A continuación, se detallan los fundamentos técnicos de esta implementación.
+
+\subsubsection{Derivación de la Strong Key mediante PBKDF2}
+Para transformar datos de baja entropía en una clave robusta, se utiliza el algoritmo \textit{Password-Based Key Derivation Function 2} (PBKDF2).
+
+\begin{itemize}
+    \item \textbf{Función de Estiramiento:} Se emplea HMAC-SHA256 con un factor de iteración de $600,000$. Este alto número de iteraciones aumenta el costo computacional de ataques de fuerza bruta, y es el recomendado por la OWASP para este algoritmo.
+
+\begin{lstlisting}[language=Python, caption=Implementación de derivación de clave con estándar OWASP]
+# Derivacion de la Strong Key usando PBKDF2-HMAC-SHA256
+strong_key = PBKDF2(
+    password=u_rol, 
+    salt=salt_utilizado, 
+    dkLen=32, 
+    count=600000,  # 600k iteraciones segun estandar OWASP 2023
+    hmac_hash_module=SHA256
+)
+\end{lstlisting}
+    
+    \item \textbf{Uso de SALT:} Se inyecta un \textit{salt} aleatorio de 16 bytes para mitigar ataques de tablas de arcoíris (Rainbow Tables). Esto garantiza que identidades similares produzcan claves únicas.
+    La decisión se tomó en base a la recomendación del NIST SP 800-132, que indica una longitud de al menos 128 bits para el SALT.
+\end{itemize}
+
+Se evaluó la implementación de Argon2id por su superioridad técnica y resistencia a ataques de GPU (memory-hard). Sin embargo, se optó por PBKDF2 para asegurar la máxima compatibilidad entre los entornos de desarrollo del equipo y la portabilidad del script, compensando su menor resistencia teórica con un alto número de iteraciones ($600,000$).
+
+
+\subsubsection{Generador Determinista de Números Aleatorios (DRNG)}
+Para garantizar la reproducibilidad de las llaves RSA sin depender de la entropía variable del sistema operativo, se implementó un generador determinista basado en la \textit{Strong Key}.
+
+\begin{equation}
+    Result_{bytes} = \sum_{i=0}^{n} SHA256(StrongKey + Counter_{i})
+\end{equation}
+
+Este diseño asegura que el par de llaves generado sea una función matemática directa de la identidad del usuario:
+\begin{displaymath}
+    Key_{RSA} = f(DRNG(PBKDF2(Nombre + ROL, Salt)))
+\end{displaymath}
+
+\begin{lstlisting}[language=Python, caption=Lógica del generador de números aleatorios determinista]
+def __call__(self, n):
+    """Genera n bytes deterministas estirando la semilla (Strong Key)"""
+    result = b""
+    while len(result) < n:
+        # Combinacion de semilla y contador para generar entropia reproducible
+        hash_input = self.seed + self.counter.to_bytes(4, 'big')
+        result += SHA256.new(hash_input).digest()
+        self.counter += 1
+    return result[:n]
+\end{lstlisting}
+
+
+\subsubsection{Cifrado Asimétrico RSA-2048}
+Se ha seleccionado el estándar RSA con una longitud de clave de 2048 bits. Este nivel de seguridad proporciona una resistencia de aproximadamente 112 bits contra ataques convencionales, cumpliendo con las recomendaciones actuales del NIST para la protección de datos hasta el año 2030.
+
+\subsection{Evidencia}
+En esta sección se presentan los registros visuales que validan el correcto funcionamiento del Protocolo OMEGA en su Fase 1, demostrando el cumplimiento de los requisitos de seguridad, organización jerárquica y determinismo criptográfico.
+
+\subsection{Ejecución del Sistema e Interacción}
+En la Figura \ref{fig:ejecucion} se observa el flujo de trabajo del script principal, destacando la capacidad de gestionar múltiples identidades de forma iterativa y la sanitización de los nombres de usuario.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{screenshots/F1_funcionamiento.png}
+    \caption{Interfaz de usuario y proceso de generación de identidades múltiples.}
+    \label{fig:ejecucion}
+\end{figure}
+
+\subsection{Almacenamiento y Persistencia}
+La Figura \ref{fig:carpetas} muestra la organización automática de las llaves dentro del proyecto. Se evidencia la creación de subdirectorios por miembro, asegurando la escalabilidad del sistema.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{screenshots/F1_almacenamiento.png}
+    \caption{Estructura de directorios en el repositorio: Llaves RSA y SALT organizados por miembro.}
+    \label{fig:carpetas}
+\end{figure}
+
+\subsection{Validación de Determinismo}
+Para comprobar que el par de llaves depende exclusivamente de la identidad (Nombre y ROL), se realizó una comparación de hashes sobre la llave privada generada en dos ejecuciones distintas. Como se observa en la Figura \ref{fig:hash}, el resultado es bit a bit idéntico.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{screenshots/F1_determinismo.png} % Cambia 'determinismo.png' por tu nombre de archivo
+    \caption{Prueba de integridad: Los hashes SHA-256 coinciden, validando la recuperación determinista de la identidad.}
+    \label{fig:hash}
+\end{figure}
 
 \section{Fase 2}
 
@@ -153,7 +274,28 @@ el mensaje con la clave publica del emisor y luego firmar con su propia clave pr
 \subsection{B) La Entropía de los Nombres}
 \textbf{¿Cómo garantiza el SALT que no se puedan pre-calcular llaves?} \\
 
-...
+Sin la implementación de un SALT, la función de derivación sería puramente determinista sobre entradas predecibles (Nombre y Rol):
+\begin{equation}
+    Key = PBKDF2(Nombre + Rol)
+\end{equation}
+
+Esta predictibilidad permite a un atacante realizar un \textit{Ataque de Diccionario} o utilizar \textit{Rainbow Tables} (tablas de búsqueda pre-calculadas), donde se almacena una gran cantidad de combinaciones de nombres comunes y sus respectivos resultados de PBKDF2, permitiendo una recuperación de llaves casi instantánea en caso de que la base de datos sea vulnerada.
+
+\subsection{Mecanismo de Defensa del SALT}
+La inclusión de un SALT de 128 bits (16 bytes) transforma la ecuación de derivación, rompiendo la relación estática entre la identidad y la llave:
+\begin{equation}
+    Key = PBKDF2(Nombre + Rol + SALT)
+\end{equation}
+
+El SALT garantiza la seguridad del sistema al lograr principalmente lo siguiente:
+
+\begin{enumerate}
+    \item \textbf{Explosión del Espacio de Búsqueda:} Al introducir 128 bits de entropía adicional, el atacante ya no puede pre-calcular una tabla para un nombre. Tendría que calcular una tabla para cada una de las $2^{128}$ variaciones posibles de SALT. El almacenamiento requerido para lograr ese cálculo excede la capacidad física de los sistemas de cómputo actual.
+    
+    \item \textbf{Invalidez del Pre-cómputo:} El SALT obliga al atacante a realizar el esfuerzo computacional completo ($600,000$ iteraciones) de forma individual para cada miembro del equipo. No es posible reutilizar el cálculo de una identidad para otra, incluso si los nombres son idénticos, ya que cada carpeta \texttt{keys/\{nombre\}/} contiene un archivo \texttt{.bin} con un SALT único.
+    
+    \item \textbf{Unicidad de Salida:} Garantiza que si dos usuarios poseen el mismo nombre y rol, sus llaves RSA resultantes sean bit a bit diferentes, evitando colisiones de identidad en el repositorio compartido.
+\end{enumerate}
 
 
 \subsection{C) El Error del Punto Flotante}
