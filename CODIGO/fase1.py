@@ -61,7 +61,7 @@ def obtener_identidad(nombre, rol):
 
     # Tarea 1: Strong Key con PBKDF2
     passphrase = f"{nombre}{rol}".encode('utf-8')
-    strong_key = PBKDF2(passphrase, salt, dkLen=32, count=100000, hmac_hash_module=SHA256)
+    strong_key = PBKDF2(passphrase, salt, dkLen=32, count=600000, hmac_hash_module=SHA256)
     
     # Tarea 3: Generación Par de Llaves RSA-2048
     print(f"[*] Derivando llaves RSA de 2048 bits...")
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         # 4. Preguntar si desea continuar
         continuar = input("\n¿Desea ingresar a otro miembro? (s/n): ").strip().lower()
         if continuar != 's':
-            print("[!] Protocolo finalizado. Cerrando terminal segura.")
+            print("[!] Protocolo finalizado. Cerrando terminal.")
             break
 
     print("\n--- PROCESO COMPLETADO ---")
