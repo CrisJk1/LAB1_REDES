@@ -1,10 +1,12 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{float}
 
 \title{Laboratorio 1: El Incidente del Sistema Golgotha}
 \author{
     Cristian Quintanilla - 202210117-2 \\
-    Jose Alvarado - ROL \\
+    Jose Alvarado - 202373122-6 \\
     Matias Peñaloza - 202373037-8 \\
     Cristobal Aguilera - ROL
 }
@@ -12,17 +14,156 @@
 \begin{document}
 \maketitle
 
-\section{Evidencias}
+\section{Fase 2}
 
-\section{Análisis Teórico}
-\subsection{Comparación ECB vs CBC}
+\subsection{Evidencias}
+
+\subsection{Análisis Teórico}
+\subsubsection{Comparación ECB vs CBC}
 
 En la fase II se cifró la imagen BMP del silo utilizando AES-128 en dos modos de operación: ECB y CBC. La diferencia observada fue clara: en la imagen cifrada con ECB todavía se distinguen patrones de la imagen original, especialmente el hexágono central, el cual se mantuvo reconocible incluso al repetir pruebas con distintas claves. Esto ocurre porque ECB cifra cada bloque de forma independiente; por lo tanto, bloques de texto plano iguales producen bloques cifrados iguales, preservando patrones estructurales en archivos con información repetitiva, como una imagen.
 
 En cambio, al cifrar la misma imagen con CBC, los patrones visuales desaparecen completamente y el resultado se observa como ruido o estática. Esto se debe a que CBC encadena cada bloque con el bloque cifrado anterior y utiliza un IV para aleatorizar el primer bloque. Así, aunque existan bloques similares o repetidos en la imagen original, su representación cifrada cambia según el contexto del encadenamiento. Por esta razón, CBC es la mejor opción para ocultar información visual, ya que evita la filtración de patrones que sí aparece en ECB.
 
+\section{Fase 3}
+
+\subsection{Análisis Teórico}
+En la fase III, se debe asegurar autenticidad y el no repudio de las comunicaciones del Consejo,
+junto con la condicion de que no se debe saber a quien se le esta enviando el mensaje y poder comprobar la integridad de este.
+Para esto hay 3 componentes principales:
+\begin{itemize}
+	\item \textbf{Un Hash para la integridad}: Hay que calcular un hash del mensaje original para poder verificar su integridad en la llegada.
+	\item \textbf{Claves Asimetricas para autenticidad}: Hay que utilizar claves asimetricas para poder "firmar" el mensaje y asi poder confirmar la identidad de quien envia el mensaje.
+	\item \textbf{Clave Simetrica compartida}: Una clave simetrica compartida permitira cifrar el mensaje sin agregar identidad al mismo, y asi cumplir la condicion de no saber a quien se le esta enviando el mensaje.
+\end{itemize}
+
+Ahora se pueden tomar 2 caminos dependiendo del orden de encriptacion, entonces el orden sera:
+\begin{enumerate}
+	\item \textbf{Hash}: Se calcula el hash del mensaje
+	\item \textbf{Firmar}: Se firma el hash del mensaje
+	\item \textbf{Encriptar}: Se encripta el mensaje junto al hash firmado
+\end{enumerate}
+Gracias a este orden se puede proteger la identidad de quien lo envia, ya que la firma queda bajo la proteccion de la encriptacion.
+Por otro incluso si la clave simetrica compartida es comprometida, el sistema puede identificar cuales usuarios pertenecen al consejo
+y denegar o alertar sobre mensajes que tengan otra identidad asociada.
+
+\subsection{Evidencias}
+
+En el siguiente output, se puede observar como uno de los miembros del consejo comparte la clave simetrica a un externo,
+luego el externo intenta mandar mensajes al consejo:
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{screenshots/fase3-1.png}
+    \caption{Evidencia de autenticidad}
+    \label{fig:evidencia_fase3_1}
+\end{figure}
+
+Aun con la clave simetrica compartida, gracias a la autenticidad que proporciona la firma, es posible identificar si los mensajes
+son o no enviados por miembros del consejo.
+\\
+\\
+
+En este otro ouput, se puede observar como un atacante (que conoce la clave simetrica compartida) intercepta un mensaje y envia un mensaje modificado junto con la firma original:
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{screenshots/fase3-2.png}
+    \caption{Evidencia de integridad}
+    \label{fig:evidencia_fase3_2}
+\end{figure}
+
+Gracias a utilizar un hash bajo la firma, se puede identificar que el mensaje fue modificado y alertar sobre un sabotaje.
+Especificamente en el codigo la funcion \texttt{descifrar\_mensaje} verifica la firma junto con el hash al mismo tiempo,
+por lo que aun que sea un "error" de integridad igualmente el sistema intenta descifrar con las claves publicas de los
+demas usuarios del consejo como si fuese un "error" de autenticidad.
+
+
+\section{Fase 4}
+
+\subsection{Evidencias}
+
+\subsubsection{Imágenes de la simulación}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{screenshots/S1.png}
+    \includegraphics[width=0.2967\linewidth]{screenshots/S2.png}
+    \includegraphics[width=0.2967\linewidth]{screenshots/S3.png}
+\end{figure}
+
+
+\subsection{Análisis Teórico}
+
+\subsubsection{Eleccion del primo: $PRIME = 2^{521} - 1$}
+
+Primero tenemos que escoger un numero para acotar los valores debido a que el esquema de Shamir necesita un campo  finito, este 
+numero debe ser primo para que todo número no nulo sí tenga inverso multiplicativo Esto nos  garantiza que la aritmética modular 
+se encuentre acotado en la cantidad de bits del secreto. Usaremos un primo de Mersenne ya que facilita todo lo anterior y es eficiente 
+a nivel de software y hardware.
+
+\begin{figure}[ht]
+    \centering
+    $PRIME = 2^{521} - 1$
+\end{figure}
+
+Como nuestro secreto tiene 256 bits, nuestro primo de Mersenne seleccionado es mucho mayor y garantiza que ningún secreto quede fuera 
+del rango.
+
+\subsubsection{Polinomio de grado 2}
+
+En nuestro caso se nos pidió realizar un secreto de Shamir (3,4) por lo cual un polinomio de grado k - 1 (k = 3) garantiza que se 
+necesiten 3 o mas  puntos para poder reconstruir el polinomio de Lagrange y poder acceder al secreto que se encuentra en $f(0)$. 
+El caso de tener 4 llaves se genera una redundancia pero es útil en caso de que una llave se pierda.
+
+
+\subsubsection{Generación del Secreto}
+
+Para la generación de la clave secreta (secreto) utilizamos la librería secret de Python que genera aleatoriedad a través del sistema 
+operativo siendo menos predecible que usar la librería random que a través de análisis complejos se puede obtener el valor. Ademas de 
+que la librería encaja perfectamente con los bytes solicitados en el enunciado (32 bytes/ 256 bits) según la documentación.
+
+\subsubsection{Reconstrucción del Secreto}
+
+La reconstrucción se realiza mediante interpolación de Lagrange sobre el campo finito definido por el polinomio PRIME. Como el polinomio 
+es de grado 2, se necesitan exactamente 3 puntos (Llaves). Evaluando el polinomio interpolado en $x = 0$ se obtiene el secreto original.
+
+\begin{figure}[ht]
+    \centering
+    $f(0) = \sum_{i=0}^{k-1} y_i \cdot L_i(0)$
+\end{figure}
+
+
+\subsubsection{Simulacion}
+
+En el código encontraremos una función "simulacion(f1, f2, f3, f4, secreto)" esta se encarga de simular todos los casos posibles con 1 2 3 y 4 
+partes para poder acceder al secreto, este realiza interpolación de lagrange implementado en la función "interpolacion\_lagrange(puntos)" 
+para luego comparar si existe un match entre el secreto original y el obtenido con la interpolación de puntos
 
 
 \section{Interrogatorio}
+
+\subsection{A) El Orden de los Factores}
+\textbf{¿Por qué es vital firmar el mensaje antes de cifrarlo?} \\
+
+Porque asi la firma queda bajo la proteccion del cifrado, de esta forma no se puede modificar la identidad asociada a la firma ni tampoco
+conocer esta identidad sin saber la clave para descifrar. Si se hiciera de la forma inversa cifrando y luego firmando, alguien podria "desfirmar"
+el mensaje con la clave publica del emisor y luego firmar con su propia clave privada.
+
+\subsection{B) La Entropía de los Nombres}
+\textbf{¿Cómo garantiza el SALT que no se puedan pre-calcular llaves?} \\
+
+...
+
+
+\subsection{C) El Error del Punto Flotante}
+\textbf{¿Por qué la aritmetica decimal rompe el esquema de Shamir?} \\
+
+La interpolación de Lagrange calcula el secreto f(0) con una fórmula que involucra divisiones, multiplicaciones y sumas de números demasiado 
+grandes o demasiado pequeños. Computacionalmente cada numero tiene un error de redondeo debido a los estándares (IEEE 754), cuando estos números 
+se operan los errores de redondeo se se amplifican haciendo que el calculo de f(0) se impreciso y puede llevar a errores a la hora de volver a 
+obtener el Secreto haciendo que el secreto original sea inservible.
+
+
 
 \end{document}
