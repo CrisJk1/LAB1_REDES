@@ -124,7 +124,7 @@ if __name__ == "__main__":
         # 4. Preguntar si desea continuar
         continuar = input("\n¿Desea ingresar a otro miembro? (s/n): ").strip().lower()
         if continuar != 's':
-            print("[!] Protocolo finalizado. Cerrando terminal segura.")
+            print("[!] Protocolo finalizado. Cerrando terminal.")
             break
 
     print("\n--- PROCESO COMPLETADO ---")
