@@ -142,8 +142,21 @@ para luego comparar si existe un match entre el secreto original y el obtenido c
 
 \section{Interrogatorio}
 
+\subsection{A) El Orden de los Factores}
+\textbf{¿Por qué es vital firmar el mensaje antes de cifrarlo?} \\
 
-\subsubsection{C\) El Error del Punto Flotante: ¿Por qué la aritmética decimal rompe el esquema de Shamir?}
+Porque asi la firma queda bajo la proteccion del cifrado, de esta forma no se puede modificar la identidad asociada a la firma ni tampoco
+conocer esta identidad sin saber la clave para descifrar. Si se hiciera de la forma inversa cifrando y luego firmando, alguien podria "desfirmar"
+el mensaje con la clave publica del emisor y luego firmar con su propia clave privada.
+
+\subsection{B) La Entropía de los Nombres}
+\textbf{¿Cómo garantiza el SALT que no se puedan pre-calcular llaves?} \\
+
+...
+
+
+\subsection{C) El Error del Punto Flotante}
+\textbf{¿Por qué la aritmetica decimal rompe el esquema de Shamir?} \\
 
 La interpolación de Lagrange calcula el secreto f(0) con una fórmula que involucra divisiones, multiplicaciones y sumas de números demasiado 
 grandes o demasiado pequeños. Computacionalmente cada numero tiene un error de redondeo debido a los estándares (IEEE 754), cuando estos números 
