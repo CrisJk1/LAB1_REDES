@@ -1,5 +1,6 @@
 TEX/*
 !TEX/*.tex
+!TEX/screenshots/
 *.tar.gz
 venv/
 __pycache__/
