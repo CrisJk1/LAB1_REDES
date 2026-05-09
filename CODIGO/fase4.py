@@ -1,15 +1,11 @@
-from Crypto.Random import get_random_bytes
-from Crypto.Util.number import getPrime
-import random
+import secrets
+from itertools import combinations, permutations
 
-PRIME = 2**256 - 189
+PRIME = 2**521 - 1
 
 def generar_coeficientes():
-    a1 = 0
-    a2 = 0
-    while(a1 == a2):
-        a1 = random.randint(1, PRIME - 1)
-        a2 = random.randint(1, PRIME - 1)
+    a1 = secrets.randbelow(PRIME - 1) + 1
+    a2 = secrets.randbelow(PRIME - 1) + 1
     return (a1, a2)
 
 def evaluar_polinomio(secreto, x, a1, a2):
@@ -17,10 +13,10 @@ def evaluar_polinomio(secreto, x, a1, a2):
     return (x, fx)
 
 def generar_secreto():
-    secreto_hex = get_random_bytes(32)
-    secreto = int.from_bytes(secreto_hex, "big")
+    secreto_bytes = secrets.token_bytes(32)
+    secreto = int.from_bytes(secreto_bytes, "big")
     a1, a2 = generar_coeficientes()
-    return (secreto, secreto_hex, a1, a2)
+    return (secreto, secreto_bytes, a1, a2)
 
 def li(i, puntos):
     xi = puntos[i][0]
@@ -40,73 +36,46 @@ def interpolacion_lagrange(puntos):
         secreto = (secreto + yi * Li) % PRIME
     return secreto
 
-def guardar_claves(secreto_hex, f1, f2, f3, f4):
-    with open("CODIGO/keys/secreto.txt", "w") as f:
-        f.write(f"Llave: {secreto_hex.hex()}\n")
+def guardar_claves(secreto_bytes, f1, f2, f3, f4):
+    with open("CODIGO/keys/llaves_fase4.txt", "a") as f:
+        f.write(f"Llave: {secreto_bytes.hex()}\n")
     
-    with open("CODIGO/keys/partes.txt", "w") as f:
+    with open("CODIGO/keys/partes_fase4.txt", "a") as f:
+        f.write("\n")
         f.write(f"Parte 1: {f1}\n")
         f.write(f"Parte 2: {f2}\n")
         f.write(f"Parte 3: {f3}\n")
         f.write(f"Parte 4: {f4}\n")
 
-
 def simulacion(f1, f2, f3, f4, secreto):
-    # Exito con 4 partes:
-    print(f"f1+f2+f3+f4: {secreto == interpolacion_lagrange([f1, f2, f3, f4])}")
-
-    # Exito con 3 partes:
-    print(f"f1+f2+f3: {secreto == interpolacion_lagrange([f1, f2, f3])}")
-    print(f"f1+f3+f2: {secreto == interpolacion_lagrange([f1, f3, f2])}")
-    print(f"f2+f1+f3: {secreto == interpolacion_lagrange([f2, f1, f3])}")
-    print(f"f2+f3+f1: {secreto == interpolacion_lagrange([f2, f3, f1])}")
-    print(f"f3+f1+f2: {secreto == interpolacion_lagrange([f3, f1, f2])}")
-    print(f"f3+f2+f1: {secreto == interpolacion_lagrange([f3, f2, f1])}")
-    print(f"f1+f2+f4: {secreto == interpolacion_lagrange([f1, f2, f4])}")
-    print(f"f1+f4+f2: {secreto == interpolacion_lagrange([f1, f4, f2])}")
-    print(f"f2+f1+f4: {secreto == interpolacion_lagrange([f2, f1, f4])}")
-    print(f"f2+f4+f1: {secreto == interpolacion_lagrange([f2, f4, f1])}")
-    print(f"f4+f1+f2: {secreto == interpolacion_lagrange([f4, f1, f2])}")
-    print(f"f4+f2+f1: {secreto == interpolacion_lagrange([f4, f2, f1])}")
-    print(f"f1+f3+f4: {secreto == interpolacion_lagrange([f1, f3, f4])}")
-    print(f"f1+f4+f3: {secreto == interpolacion_lagrange([f1, f4, f3])}")
-    print(f"f3+f1+f4: {secreto == interpolacion_lagrange([f3, f1, f4])}")
-    print(f"f3+f4+f1: {secreto == interpolacion_lagrange([f3, f4, f1])}")
-    print(f"f4+f1+f3: {secreto == interpolacion_lagrange([f4, f1, f3])}")
-    print(f"f4+f3+f1: {secreto == interpolacion_lagrange([f4, f3, f1])}")
-    print(f"f2+f3+f4: {secreto == interpolacion_lagrange([f2, f3, f4])}")
-    print(f"f2+f4+f3: {secreto == interpolacion_lagrange([f2, f4, f3])}")
-    print(f"f3+f2+f4: {secreto == interpolacion_lagrange([f3, f2, f4])}")
-    print(f"f3+f4+f2: {secreto == interpolacion_lagrange([f3, f4, f2])}")
-    print(f"f4+f2+f3: {secreto == interpolacion_lagrange([f4, f2, f3])}")
-    print(f"f4+f3+f2: {secreto == interpolacion_lagrange([f4, f3, f2])}")
-
-    # Fallo con 2 partes:
-    print(f"f1+f2: {secreto == interpolacion_lagrange([f1, f2])}")
-    print(f"f2+f1: {secreto == interpolacion_lagrange([f2, f1])}")
-    print(f"f1+f3: {secreto == interpolacion_lagrange([f1, f3])}")
-    print(f"f3+f1: {secreto == interpolacion_lagrange([f3, f1])}")
-    print(f"f1+f4: {secreto == interpolacion_lagrange([f1, f4])}")
-    print(f"f4+f1: {secreto == interpolacion_lagrange([f4, f1])}")
-    print(f"f2+f3: {secreto == interpolacion_lagrange([f2, f3])}")
-    print(f"f3+f2: {secreto == interpolacion_lagrange([f3, f2])}")
-    print(f"f2+f4: {secreto == interpolacion_lagrange([f2, f4])}")
-    print(f"f4+f2: {secreto == interpolacion_lagrange([f4, f2])}")
-    print(f"f3+f4: {secreto == interpolacion_lagrange([f3, f4])}")
-    print(f"f4+f3: {secreto == interpolacion_lagrange([f4, f3])}")
-    
-    # Fallo con 1 parte
-    print(f"f1: {secreto == interpolacion_lagrange([f1])}")
-    print(f"f2: {secreto == interpolacion_lagrange([f2])}")
-    print(f"f3: {secreto == interpolacion_lagrange([f3])}")
-    print(f"f4: {secreto == interpolacion_lagrange([f4])}")
+    partes = [f1, f2, f3, f4]
+    nombres = {f1: "f1", f2: "f2", f3: "f3", f4: "f4"}
+    print(f"\nSecreto original: {secreto}")
+    print("=======SIMULACION DE CASOS DE USO DE LAS PARTES DEL SECRETO=======")
+    for k in range(len(partes), 0, -1):
+        if(k >= 3):
+            print(f"=======Exito esperado con {k} partes=======")
+        elif (k == 1):
+            print(f"=========Fallo esperado con 1 parte========")
+        else:
+            print(f"=======Fallo esperado con {k} partes=======")
+        
+        combos_vistos = set()        
+        for combo in combinations(partes, k):
+            for perm in permutations(combo):
+                key = tuple(p[0] for p in perm) 
+                if key not in combos_vistos:
+                    combos_vistos.add(key)
+                    nombre = "+".join(nombres[p] for p in perm)
+                    resultado = secreto == interpolacion_lagrange(list(perm))
+                    print(f"{nombre}: {resultado}")
+        print("\n")
 
 if __name__ == "__main__":
-    secreto, secreto_hex, a1, a2 = generar_secreto()
+    secreto, secreto_bytes, a1, a2 = generar_secreto()
     f1 = evaluar_polinomio(secreto, 1, a1, a2)
     f2 = evaluar_polinomio(secreto, 2, a1, a2)
     f3 = evaluar_polinomio(secreto, 3, a1, a2)
     f4 = evaluar_polinomio(secreto, 4, a1, a2)
-    guardar_claves(secreto_hex, f1, f2, f3, f4)
-    print(f"Secreto original:     {secreto}")
+    guardar_claves(secreto_bytes, f1, f2, f3, f4)
     simulacion(f1, f2, f3, f4, secreto)
