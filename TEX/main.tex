@@ -130,14 +130,43 @@ Para comprobar que el par de llaves depende exclusivamente de la identidad (Nomb
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{screenshots/F1_determinismo.png} % Cambia 'determinismo.png' por tu nombre de archivo
+    \includegraphics[width=1\textwidth]{screenshots/F1_determinismo.png}
     \caption{Prueba de integridad: Los hashes SHA-256 coinciden, validando la recuperación determinista de la identidad.}
     \label{fig:hash}
 \end{figure}
 
+\newpage
 \section{Fase 2}
 
 \subsection{Evidencias}
+
+La Figura \ref{fig:bash_fase2} evidencia la ejecución de la Fase 2 desde el Makefile, junto con la validación de los archivos generados, la verificación de integridad mediante SHA-256 y la existencia de las llaves utilizadas.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{screenshots/fase2_bash.png}
+    \caption{Ejecución de Fase 2 y validación de archivos generados desde terminal.}
+    \label{fig:bash_fase2}
+\end{figure}
+
+La Figura \ref{fig:comparacion_ecb_cbc} compara el resultado visual de cifrar la imagen BMP del silo en modo ECB y CBC.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{screenshots/silo_ecb.png}
+        \textbf{AES-ECB}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{screenshots/silo_cbc.png}
+        \textbf{AES-CBC}
+    \end{minipage}
+    \caption{Comparación visual entre cifrado ECB y CBC sobre la imagen BMP del silo.}
+    \label{fig:comparacion_ecb_cbc}
+\end{figure}
 
 \subsection{Análisis Teórico}
 \subsubsection{Comparación ECB vs CBC}
